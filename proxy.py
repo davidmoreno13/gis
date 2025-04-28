@@ -4,7 +4,6 @@ import os
 
 app = Flask(__name__)
 
-# Definir las URLs de los datos
 URLS = {
     "devices": "https://context-pre.apsevilla.com/v2/entities?limit=1000&offset=0&options=count&idPattern=.*&type=Device",
     "alerts": "https://context-pre.apsevilla.com/v2/entities?limit=100&offset=0&options=count&idPattern=.*&q=category%3D%3DmarinerNotice&type=Alert",
@@ -21,7 +20,6 @@ URLS = {
 }
 
 def fetch_and_clean(url):
-    """Hace una petición HTTP, limpia los datos y devuelve una lista."""
     response = requests.get(url, verify=False)
     response.raise_for_status()
     data = response.json()
@@ -32,7 +30,6 @@ def fetch_and_clean(url):
     return cleaned_data
 
 def clean_entity(entity):
-    """Limpia un objeto: extrae latitude y longitude, elimina location."""
     new_entity = entity.copy()
 
     location = entity.get('location', {}).get('value', {})
@@ -48,19 +45,19 @@ def clean_entity(entity):
             new_entity['longitude'] = first_point[0]
             new_entity['latitude'] = first_point[1]
 
-    new_entity.pop('location', None)  # Elimina el campo location
+    new_entity.pop('location', None)
     return new_entity
 
-# Crear una ruta por cada tipo de entidad
+# Crear las rutas de manera correcta
 for name, url in URLS.items():
-    route_path = f"/proxy_{name}"
-
     def make_proxy(url):
-        return lambda: jsonify(fetch_and_clean(url))
+        def proxy():
+            return jsonify(fetch_and_clean(url))
+        return proxy
 
-    app.route(route_path)(make_proxy(url))
+    app.add_url_rule(f"/proxy_{name}", view_func=make_proxy(url), endpoint=name)
 
-# Ruta para obtener todos los datos combinados
+# Ruta para obtener todo
 @app.route('/proxy_all')
 def fetch_all_combined():
     all_data = []
