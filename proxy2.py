@@ -35,22 +35,31 @@ def fetch_and_clean(url, skip_cleaning=False):
     return cleaned_data
 
 def clean_entity(entity):
-    new_entity = entity.copy()
+    def strip_metadata(obj):
+        if isinstance(obj, dict):
+            return {k: strip_metadata(v) for k, v in obj.items() if k != "metadata"}
+        elif isinstance(obj, list):
+            return [strip_metadata(i) for i in obj]
+        return obj
+
+    entity = strip_metadata(entity)  # <-- elimina "metadata"
+
+    # Extraer lat/lon si aplica
     location = entity.get('location', {}).get('value', {})
     coordinates = location.get('coordinates')
     location_type = location.get('type')
 
     if coordinates:
         if location_type == 'Point':
-            new_entity['longitude'] = coordinates[0]
-            new_entity['latitude'] = coordinates[1]
+            entity['longitude'] = coordinates[0]
+            entity['latitude'] = coordinates[1]
         elif location_type == 'Polygon':
             first_point = coordinates[0][0]
-            new_entity['longitude'] = first_point[0]
-            new_entity['latitude'] = first_point[1]
+            entity['longitude'] = first_point[0]
+            entity['latitude'] = first_point[1]
 
-    new_entity.pop('location', None)
-    return new_entity
+    entity.pop('location', None)
+    return entity
 
 # Generar rutas automáticamente
 for name, url in URLS.items():
